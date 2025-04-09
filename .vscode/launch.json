@@ -1,0 +1,37 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to My Service",
+            "type": "debugpy",
+            "request": "attach",
+            "justMyCode": false,
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/app",  // the FastAPI app
+                    "remoteRoot": "/code/app"
+                }
+            ],
+            "port": 5678,  // TODO: find out why vscode says these two properties are invalid.
+            "host": "localhost"
+        },
+        {
+            "name": "stage: register",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/register.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--slug",
+                "er_eventsharing",
+                "--service-url",
+                "https://tempuri.org"
+            ], 
+            "env": {"PYTHONPATH": "${workspaceFolder}"},
+            "envFile": "${workspaceFolder}/local/.env.local.stage"
+        }
+    ]
+}
