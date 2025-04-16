@@ -16,7 +16,7 @@ class AuthenticateConfig(AuthActionConfiguration, ExecutableActionMixin):
                                                        description = "API token for destination EarthRanger site.",
                                                        format = "password")
     
-class PriorityEnum(str, IntEnum):
+class PriorityEnum(IntEnum):
     gray = 0
     green = 100
     amber = 200

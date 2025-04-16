@@ -6,7 +6,7 @@ from app.services.activity_logger import activity_logger
 from app.services.state import IntegrationStateManager
 from gundi_core.schemas.v2 import Integration
 from erclient import ERClient
-from er_syncer import er_syncer
+from .er_syncer import er_syncer
 from app.actions.configurations import AuthenticateConfig, PullEventsConfig
 from app.services.errors import ConfigurationNotFound, ConfigurationValidationError
 from app.services.utils import find_config_for_action
