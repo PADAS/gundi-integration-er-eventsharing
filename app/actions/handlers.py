@@ -45,10 +45,9 @@ async def action_sync_events(integration:Integration, action_config: SyncEventsC
     load_since = state.get('last_run')
     load_since = dateparser.parse(load_since) if load_since else now - timedelta(days=action_config.days_to_sync)
 
-    load_since = dateparser.parse("2020-01-01 00:00 PST")
-
-    syncer.sync(start_date = load_since)
+    results = syncer.sync(start_date = load_since)
     await state_manager.set_state(integration_id=integration.id, action_id="sync_events", state={"last_run": now})
+    return results
 
 
 def _get_auth_config(integration):

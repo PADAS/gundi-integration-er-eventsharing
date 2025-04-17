@@ -52,15 +52,21 @@ class er_syncer:
 
         logging.info(f"Loaded {len(events_to_sync)} events to consider.")
 
+        results = {}
+
         if(len(events_to_sync) > 0):
             logging.info(f"Found '{len(events_to_sync)}' events to sync from source site '{self.src_erclient.service_root}'")
             self.dest_event_types = {}
             if(len(event_types_to_sync) > 0):
                 if(self.action_config.update_schema or self.action_config.create_schema):
                     logging.info("Syncing event categories...")
-                    self.sync_event_categories()
+                    cat_results = self.sync_event_categories()
+                    results.update(cat_results)
+
                     logging.info("Syncing event types...")
-                    self.dest_event_types = self.sync_event_types(event_types_to_sync)
+                    et_results = self.sync_event_types(event_types_to_sync)
+                    results.update(et_results)
+
                 else:
                     logging.info("Get destination event types...")
                     self.dest_event_types = self._get_event_types(event_types_to_sync, self.dest_erclient)
@@ -78,9 +84,15 @@ class er_syncer:
                                     f"update_schema is false, but event type {dest_event_type} is missing required property {prop}")
 
             logging.info(f"Syncing {len(events_to_sync)} events from source site {self.src_erclient.service_root} to destination site {self.dest_erclient.service_root}. Start date: {start_date}")
-            self._sync_events(source_events = events_to_sync, start_date = start_date)
+            event_results = self._sync_events(source_events = events_to_sync, start_date = start_date)
+            results.update(event_results)
+
+        return results
 
     def sync_event_types(self, event_types_to_sync:List):
+
+        ets_created = 0
+        ets_updated = 0
 
         logging.info("Loading event type schemas")
         source_event_types = self._get_event_types(event_types_to_sync, self.src_erclient)
@@ -118,14 +130,17 @@ class er_syncer:
                             logging.info(f"Updating destination event type {new_event_type['value']} from source event type {event_type_name}")
                             new_event_type['id'] = dest_event_type["id"]
                             result_types[new_event_type['value']] = self.dest_erclient.patch_event_type(new_event_type)
+                            ets_updated += 1
                 elif(self.action_config.create_schema):
                     logging.info(f"Creating destination event type {new_event_type['value']} from source event type {event_type_name}")
                     result_types[new_event_type['value']] = self.dest_erclient.post_event_type(new_event_type)
+                    ets_created += 1
             except ERClientException as e:
                 logging.exception(f"Error while creating event type {new_event_type['value']} in destination '{self.dest_erclient.service_root}'.  Exception: {e}. User: {self.dest_erclient.username}. Skipping creation...")
                 continue
 
-        return result_types
+        self.dest_event_types = result_types
+        return {"event_types_created": ets_created, "event_types_updated": ets_updated}
 
     @staticmethod
     def _compare_schemas(schema1, schema2):
@@ -240,6 +255,9 @@ class er_syncer:
     
     def sync_event_categories(self):
 
+        cats_created = 0
+        cats_updated = 0
+
         source_cats = self._get_event_categories(self.src_erclient)
         logging.info(f"Found {len(source_cats)} event categories from source site {self.src_erclient.service_root}")
 
@@ -257,10 +275,14 @@ class er_syncer:
                 if(self.action_config.create_schema):
                     new_cat = self.create_dest_category(source_cats[cat])
                     if new_cat:
+                        cats_created += 1
                         dest_cats[new_cat['value']] = new_cat
 
             elif(self.action_config.update_schema):
                 self.update_dest_category(dest_cats[dest_cat_value], source_cats[cat])
+                cats_updated += 1
+
+        return {"cats_created": cats_created, "cats_updated": cats_updated}
 
     def create_dest_category(self, cat):
         new_cat = {
@@ -343,6 +365,12 @@ class er_syncer:
 
     def _sync_events(self, *, source_events: List, start_date: datetime):
 
+        events_created = 0
+        events_updated = 0
+        events_deleted = 0
+        events_added_to_incidents = 0
+        events_removed_from_incidents = 0
+
         dest_events = self._get_events(since = start_date, erclient = self.dest_erclient,
             include_event_types = self.dest_event_types.keys())
         dest_events_sources = self._get_dest_event_sources(dest_events)
@@ -371,6 +399,7 @@ class er_syncer:
             if(source_event['id'] not in dest_events_sources.keys()):
                 try:
                     new_event = self.create_dest_event(source_event)
+                    events_created += 1
                 except ERClientException as e:
                     logging.exception(f"Error while creating event {source_event['id']} in destination '{self.dest_erclient.service_root}'.  Exception: {e}. User: {self.dest_erclient.username}. Skipping creation...")
                 else:
@@ -387,6 +416,7 @@ class er_syncer:
                     continue
 
                 self.update_dest_event(dest_events_sources[source_event['id']], source_event)
+                events_updated += 1
 
         ## Now to deal with incidents...
         src_incident_map = self.get_incident_map(all_source_events)
@@ -420,6 +450,7 @@ class er_syncer:
                 # If the mapping doesn't exist, create it
                 logging.info(f"Adding destination event {dest_event['id']} to destination incident {dest_incident['id']}")
                 self.dest_erclient.add_event_to_incident(dest_event['id'], dest_incident['id'])
+                events_added_to_incidents += 1
 
         if(self.action_config.delete_unmatched_events):
             # For any events that weren't handled by the create or update, we assume
@@ -427,6 +458,7 @@ class er_syncer:
             for dest_event in dest_unmatched.values():
                 logging.info(f"Deleting destination event {dest_event['id']} - There is no source match")
                 self.dest_erclient.delete_event(dest_event['id'])
+                events_deleted += 1
                 if(dest_event['id'] in dest_incident_map):
                     del dest_incident_map[dest_event['id']]
 
@@ -439,8 +471,16 @@ class er_syncer:
                     if dest_event and dest_incident:
                         logging.info(f"Removing destination event {dest_event['id']} from destination incident {dest_incident['id']} - No such relation exists in the source system")
                         self.dest_erclient.remove_event_from_incident(self, dest_event['id'], dest_incident['id'])
+                        events_removed_from_incidents += 1
                     else:
                         logging.warning(f"Could not find destination event {dest_event_serial} or destination incident {dest_incident_serial} to remove association")
+
+        return {
+            "events_created": events_created,
+            "events_updated": events_updated,
+            "events_deleted": events_deleted,
+            "events_added_to_incidents": events_added_to_incidents,
+            "events_removed_from_incidents": events_removed_from_incidents}
 
     def _get_dest_event_sources(self, events: List[Dict]) -> Dict:
         sources = {}
