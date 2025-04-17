@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
-from app.services.errors import ConfigurationNotFound, ConfigurationValidationError
+from app.services.errors import ConfigurationValidationError
 from erclient import ERClient, ERClientException
 import pytz
 import tempfile

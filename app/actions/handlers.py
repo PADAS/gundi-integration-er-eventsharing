@@ -1,5 +1,4 @@
 import logging
-import httpx
 import dateparser
 from datetime import datetime, timezone, timedelta
 from app.services.action_scheduler import crontab_schedule
@@ -9,19 +8,16 @@ from gundi_core.schemas.v2 import Integration
 from erclient import ERClient
 from .er_syncer import er_syncer
 from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
-from app.services.errors import ConfigurationNotFound, ConfigurationValidationError
+from app.services.errors import ConfigurationNotFound
 from app.services.utils import find_config_for_action
 
 logger = logging.getLogger(__name__)
 state_manager = IntegrationStateManager()
 
-DEFAULT_DAYS_TO_SYNC = 10
-
 async def action_auth(integration:Integration, action_config: AuthenticateConfig):
     logger.info(f"Executing auth action with integration {integration} and action_config {action_config}...")
 
     try:
-        # Use a request for region info as a proxy for verifying credentials.
         erclient = ERClient(service_root = action_config.source_server, token = action_config.source_token.get_secret_value())
         erclient.get_me()
 
