@@ -1,6 +1,6 @@
 name: Test integration
 on:
-  pull_request
+  sync_request
 
 jobs:
   pr_unit_tests:

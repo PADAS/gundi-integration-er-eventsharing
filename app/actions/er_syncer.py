@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from app.actions.configurations import AuthenticateConfig, PullEventsConfig
+from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
 from app.services.errors import ConfigurationNotFound, ConfigurationValidationError
 from erclient import ERClient, ERClientException
 import pytz
@@ -18,7 +18,7 @@ class er_syncer:
                                'category', 'is_collection', 'geometry_type']
 
 
-    def __init__(self, auth_config: AuthenticateConfig, action_config: PullEventsConfig):
+    def __init__(self, auth_config: AuthenticateConfig, action_config: SyncEventsConfig):
         self.action_config = action_config
         self.auth_config = auth_config
 
@@ -37,7 +37,6 @@ class er_syncer:
     def sync(self, start_date):
         logging.info(f"Syncing events since '{start_date}' from '{self.src_erclient.service_root}' to '{self.dest_erclient.service_root}'")
 
-        print(self.action_config)
         source_events = self._get_events(since = start_date, erclient = self.src_erclient,
             include_event_types = None, within_featuregroups = self.action_config.within_featuregroups,
             priorities = self.action_config.matching_priorities, state = self.action_config.matching_states)
@@ -45,7 +44,7 @@ class er_syncer:
         event_types_to_sync = []
         events_to_sync = []
 
-        # Create a list of the unique event types that we're going to pull from source
+        # Create a list of the unique event types that we're going to sync from source
         for event in source_events:
             if(event['event_type'] not in event_types_to_sync):
                 event_types_to_sync.append(event['event_type'])
@@ -147,21 +146,13 @@ class er_syncer:
 
     @staticmethod
     def _load_feature_group(feature_group: str, erclient: ERClient):
-        return erclient.get_objects(object=f"spatialfeaturegroup/{feature_group}")
+        objs = list(erclient.get_objects(object=f"spatialfeaturegroup/{feature_group}"))
+        return objs[0]
 
     @staticmethod
     def _get_events(since: datetime, erclient: ERClient, include_event_types: List[str] = [],
                          within_featuregroups: List[str] = [], priorities: List[int] = None,
                          state: List[str] = None):
-
-        # TODO: States
-        # TODO: Testing against multiple feature groups
-        # TODO: Testing priorities
-        # TODO: Testing removing priority / deletion
-        # TODO: Test attachments
-        # TODO: Test notes
-        # TODO: Matching on details values
-
 
         filter = {}
         if(since != None):
@@ -173,7 +164,7 @@ class er_syncer:
             }
 
         if(priorities):
-            filter['priorities'] = priorities
+            filter['priority'] = priorities
 
         event_type_ids = er_syncer._get_event_type_ids(erclient, include_event_types)
         if(not event_type_ids):

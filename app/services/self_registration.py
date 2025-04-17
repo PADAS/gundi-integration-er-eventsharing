@@ -8,7 +8,7 @@ import httpx
 from app.actions import (
     action_handlers,
     AuthActionConfiguration,
-    PullActionConfiguration,
+    SyncActionConfiguration,
     PushActionConfiguration,
     ExecutableActionMixin,
     InternalActionConfiguration,
@@ -53,7 +53,7 @@ async def register_integration_in_gundi(gundi_client, type_slug=None, service_ur
         action_ui_schema = config_model.ui_schema()
         if issubclass(config_model, AuthActionConfiguration):
             action_type = ActionTypeEnum.AUTHENTICATION.value
-        elif issubclass(config_model, PullActionConfiguration):
+        elif issubclass(config_model, SyncActionConfiguration):
             action_type = ActionTypeEnum.PULL_DATA.value
         elif issubclass(config_model, PushActionConfiguration):
             action_type = ActionTypeEnum.PUSH_DATA.value
@@ -72,7 +72,7 @@ async def register_integration_in_gundi(gundi_client, type_slug=None, service_ur
             "ui_schema": action_ui_schema,
         }
 
-        if issubclass(config_model, PullActionConfiguration):
+        if issubclass(config_model, SyncActionConfiguration):
             action["is_periodic_action"] = True
             # Schedules can be specified by argument or using a decorator
             if action_schedules and action_id in action_schedules:

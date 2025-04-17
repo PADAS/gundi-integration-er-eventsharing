@@ -7,7 +7,7 @@ from app.services.state import IntegrationStateManager
 from gundi_core.schemas.v2 import Integration
 from erclient import ERClient
 from .er_syncer import er_syncer
-from app.actions.configurations import AuthenticateConfig, PullEventsConfig
+from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
 from app.services.errors import ConfigurationNotFound, ConfigurationValidationError
 from app.services.utils import find_config_for_action
 
@@ -33,18 +33,20 @@ async def action_auth(integration:Integration, action_config: AuthenticateConfig
 
 
 @activity_logger()
-async def action_pull_events(integration:Integration, action_config: PullEventsConfig):
+async def action_sync_events(integration:Integration, action_config: SyncEventsConfig):
     now = datetime.now(tz=timezone.utc)
 
     auth_config = _get_auth_config(integration)
     syncer = er_syncer(auth_config, action_config)
 
-    state = await state_manager.get_state(integration.id, "pull_events")
+    state = await state_manager.get_state(integration.id, "sync_events")
     load_since = state.get('last_run')
     load_since = dateparser.parse(load_since) if load_since else now - timedelta(days=action_config.days_to_sync)
 
+    load_since = dateparser.parse("2020-01-01 00:00 PST")
+
     syncer.sync(start_date = load_since)
-    await state_manager.set_state(integration_id=integration.id, action_id="pull_events", state={"last_run": now})
+    await state_manager.set_state(integration_id=integration.id, action_id="sync_events", state={"last_run": now})
 
 
 def _get_auth_config(integration):

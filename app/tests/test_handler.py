@@ -4,7 +4,7 @@ import pytest
 import json
 from erclient import ERClient
 from unittest.mock import patch, Mock
-from app.actions.handlers import action_auth, action_pull_events
+from app.actions.handlers import action_auth, action_sync_events
 from app.actions.er_syncer import er_syncer
 
 @patch('erclient.ERClient.get_event_categories')

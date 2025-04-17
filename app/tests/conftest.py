@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from app.actions.configurations import AuthenticateConfig, PullEventsConfig
+from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
 
 @pytest.fixture
 def source_event_categories():
@@ -46,7 +46,7 @@ def modified_event_categories():
 
 @pytest.fixture
 def sample_action_config():
-    return PullEventsConfig(source_system_abbr = "from",
+    return SyncEventsConfig(source_system_abbr = "from",
                      source_system_name = "From",
                      matching_states = None,
                      prepend_system_to_event_titles = True,
