@@ -1,26 +1,35 @@
 from enum import IntEnum
 from typing import Optional, List, Dict
 import pydantic
+import re
 from .core import PullActionConfiguration, AuthActionConfiguration, ExecutableActionMixin
 
 class AuthenticateConfig(AuthActionConfiguration, ExecutableActionMixin):
-    source_server: str = pydantic.Field('', title = "Source Server",
-                                         description = "Servername for source EarthRanger site.")
-    source_token: pydantic.SecretStr = pydantic.Field(..., title = "ER Source Token",
-                                                       description = "API token for source EarthRanger site.",
-                                                       format = "password")
-
-    dest_server: str = pydantic.Field('', title = "Destination Server",
-                                         description = "Servername for destination EarthRanger site.")
     dest_token: pydantic.SecretStr = pydantic.Field(..., title = "Destination Token",
                                                        description = "API token for destination EarthRanger site.",
                                                        format = "password")
+    dest_server: str = pydantic.Field('', title = "Destination Server",
+                                         description = "Servername for destination EarthRanger site.")
+    source_token: pydantic.SecretStr = pydantic.Field(..., title = "ER Source Token",
+                                                       description = "API token for source EarthRanger site.",
+                                                       format = "password")
+    source_server:   str = pydantic.Field('', title = "Source Server",
+                                         description = "Servername for source EarthRanger site.")
     
-class PriorityEnum(str, IntEnum):
-    gray = 0
-    green = 100
-    amber = 200
-    red = 300
+    @pydantic.validator("dest_server", "source_server")
+    def fill_in_server_defaults(cls, server: str):
+        server = re.sub("\/+$", "", server)
+        if not(server.startswith("http")):
+            server = "https://" + server
+        if ("/api/v" not in server):
+            server = server + "/api/v1.0"
+        return server
+        
+class PriorityEnum(IntEnum):
+    GRAY = 0
+    GREEN = 100
+    AMBER = 200
+    RED = 300
 
 class PullEventsConfig(PullActionConfiguration):
     days_to_sync: int = pydantic.Field(1, title = "Default Days to Sync",
@@ -29,7 +38,9 @@ class PullEventsConfig(PullActionConfiguration):
         description = "Name for source system.  Used to provide information about where an event orginated.")
     source_system_abbr: str = pydantic.Field(..., title = "Source System Abbreviation",
         description = "Abbreviation for source system.  Used to annotate events about where an event originated.")
-    update_schema: bool = pydantic.Field(True, title = "Update Destination Schema",
+    create_schema: bool = pydantic.Field(True, title = "Create Destination Event Types",
+        description = "Whether to create event types and categories in the destination system if they don't already exist.  If false, event types that don't match a destination event type will not be synched.")
+    update_schema: bool = pydantic.Field(True, title = "Update Destination Event Types",
         description = "Whether to update event types and categories in the destination system to match the source system.")
     prepend_system_to_categories: bool = pydantic.Field(True, title = "Prepend System to Categories",
         description = "Whether the name of event categories that are created should be prepended with the abbrivation of the source system.")
@@ -41,9 +52,14 @@ class PullEventsConfig(PullActionConfiguration):
         description = "Whether events in the destination system no longer in the source system should be deleted from the destination system.")
     within_featuregroups: Optional[List[str]] = pydantic.Field(title = "Within Feature Groups",
         description = "If present, only events that are within one of the listed Feature Groups will be copied from the source system to destination system.")
-    matching_priorities: Optional[PriorityEnum] = pydantic.Field(title = "Matching Priorities",
+    matching_priorities: Optional[List[PriorityEnum]] = pydantic.Field(title = "Matching Priorities",
         description = "If present, only events matching one of these priorities will be copied from the source to the destination system.")
     matching_states: Optional[List[str]] = pydantic.Field(title = "Matching States",
         description = "If present, only events matching one of these states will be copied from the source to the destination system.")
-    matching_detail_values: Optional[Dict[str, str]] = pydantic.Field(title = "Matching Detail Values",
-        description = "If present, only include events matching these event detail/value pairs.")
+#    matching_detail_values: Optional[Dict[str, str]] = pydantic.Field(title = "Matching Detail Values",
+#        description = "If present, only include events matching these event detail/value pairs.")
+    
+
+    @pydantic.validator("source_system_abbr")
+    def ensure_keys_are_lowercase(cls, key: str):
+        return key.lower()
