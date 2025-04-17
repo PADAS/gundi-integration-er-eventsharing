@@ -2,6 +2,7 @@ import logging
 import httpx
 import dateparser
 from datetime import datetime, timezone, timedelta
+from app.services.action_scheduler import crontab_schedule
 from app.services.activity_logger import activity_logger
 from app.services.state import IntegrationStateManager
 from gundi_core.schemas.v2 import Integration
@@ -33,6 +34,7 @@ async def action_auth(integration:Integration, action_config: AuthenticateConfig
 
 
 @activity_logger()
+@crontab_schedule("*/15 * * * *") # Run every 15 minutes
 async def action_sync_events(integration:Integration, action_config: SyncEventsConfig):
     now = datetime.now(tz=timezone.utc)
 
