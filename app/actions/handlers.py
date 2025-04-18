@@ -6,7 +6,7 @@ from app.services.activity_logger import activity_logger
 from app.services.state import IntegrationStateManager
 from gundi_core.schemas.v2 import Integration
 from erclient import ERClient
-from .er_syncer import er_syncer
+from .er_syncer import ERSyncer
 from app.actions.configurations import AuthenticateConfig, SyncEventsConfig
 from app.services.errors import ConfigurationNotFound
 from app.services.utils import find_config_for_action
@@ -35,7 +35,7 @@ async def action_sync_events(integration:Integration, action_config: SyncEventsC
     now = datetime.now(tz=timezone.utc)
 
     auth_config = _get_auth_config(integration)
-    syncer = er_syncer(auth_config, action_config)
+    syncer = ERSyncer(auth_config, action_config)
 
     state = await state_manager.get_state(integration.id, "sync_events")
     load_since = state.get('last_run')
