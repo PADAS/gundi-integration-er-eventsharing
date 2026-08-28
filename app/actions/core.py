@@ -14,7 +14,7 @@ class InternalActionConfiguration(BaseModel):
     pass
 
 
-class PullActionConfiguration(ActionConfiguration):
+class SyncActionConfiguration(ActionConfiguration):
     pass
 
 
